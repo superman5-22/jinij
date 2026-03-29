@@ -1,7 +1,7 @@
 # 基本設計書
 
 **システム名**: jinij — 社内人事管理システム
-**バージョン**: 1.1
+**バージョン**: 1.2
 **作成日**: 2026-03-29
 **改訂履歴**:
 
@@ -9,6 +9,7 @@
 |---|---|---|---|
 | 1.0 | 2026-03-29 | 初版作成 | - |
 | 1.1 | 2026-03-29 | 部署管理機能追加（SCR-08、F-50〜F-54） | - |
+| 1.2 | 2026-03-29 | 勤怠管理機能追加（SCR-09、F-60〜F-66） | - |
 
 ---
 
@@ -89,12 +90,20 @@ jinij
 │   ├── F-52 部署更新（admin のみ）
 │   ├── F-53 部署削除（admin のみ）
 │   └── F-54 バリデーション
-└── 通知機能 ★新規
-    ├── F-40 通知受信（DB トリガー起点）
-    ├── F-41 通知一覧表示（ベルアイコン）
-    ├── F-42 既読処理
-    ├── F-43 全件既読
-    └── F-44 Realtime リアルタイム更新
+├── 通知機能
+│   ├── F-40 通知受信（DB トリガー起点）
+│   ├── F-41 通知一覧表示（ベルアイコン）
+│   ├── F-42 既読処理
+│   ├── F-43 全件既読
+│   └── F-44 Realtime リアルタイム更新
+└── 勤怠管理 ★新規
+    ├── F-60 出勤打刻
+    ├── F-61 退勤打刻（休憩時間入力付き）
+    ├── F-62 本日打刻状況確認
+    ├── F-63 月次勤怠一覧
+    ├── F-64 月次サマリー
+    ├── F-65 月移動
+    └── F-66 バリデーション（重複打刻防止）
 ```
 
 ---
@@ -113,6 +122,7 @@ jinij
 | SCR-06 | 従業員編集 | `/employees/:id/edit` | hr / admin |
 | SCR-07 | 休暇申請・承認 | `/leaves` | 全ロール |
 | SCR-08 | 部署管理 | `/departments` | admin のみ（閲覧は全ロール） |
+| SCR-09 | 勤怠管理 | `/attendance` | 全ロール |
 
 ### 3.2 画面遷移図
 
@@ -138,9 +148,14 @@ SCR-02 ダッシュボード ◄────────────────
     │
     ├─[サイドバー: 休暇申請]──► SCR-07 休暇申請・承認
     │
-    └─[サイドバー: 部署管理（admin）]──► SCR-08 部署管理
-                                              │
-                               [新規登録/編集/削除（admin）]
+    ├─[サイドバー: 部署管理（admin）]──► SCR-08 部署管理
+    │                                             │
+    │                              [新規登録/編集/削除（admin）]
+    │
+    └─[サイドバー: 勤怠管理]──► SCR-09 勤怠管理
+                                      │
+                         [出勤ボタン / 退勤ボタン]
+                         [月切替 ◄ YYYY年MM月 ►]
 ```
 
 ### 3.3 通知ドロップダウン（全画面共通）
@@ -205,6 +220,10 @@ SCR-02 ダッシュボード ◄────────────────
 | `/api/v1/leaves/:id/approve` | POST | 残日数トランザクション付き承認 | JWT |
 | `/api/v1/leaves/:id/reject` | POST | 却下処理 | JWT |
 | `/api/v1/leaves/:employee_id/balance-check` | GET | 残日数シミュレート | JWT |
+| `/api/v1/attendance/clock-in` | POST | 出勤打刻 | JWT |
+| `/api/v1/attendance/clock-out` | POST | 退勤打刻 | JWT |
+| `/api/v1/attendance/today` | GET | 本日の打刻状態取得 | JWT |
+| `/api/v1/attendance/:employee_id/monthly` | GET | 月次勤怠サマリー取得 | JWT |
 
 ---
 
@@ -241,6 +260,7 @@ notifications ──────► auth.users (user_id)
 | `employees` | 従業員情報（40+ 項目） | UUID |
 | `leave_requests` | 休暇申請（ステータス管理） | UUID |
 | `notifications` | アプリ内通知（★新規） | UUID |
+| `attendance_records` | 勤怠記録（出退勤打刻・ステータス）（★新規） | UUID |
 | `audit_logs` | 操作監査ログ | UUID |
 
 ### 7.3 通知テーブル設計概要 ★新規
@@ -257,6 +277,24 @@ notifications ──────► auth.users (user_id)
 | `created_at` | TIMESTAMPTZ | 作成日時 |
 
 **自動生成トリガー**: `leave_requests.status` が `pending → approved / rejected` に変化したとき、対象従業員の `user_id` に対して自動的に通知レコードを INSERT する。
+
+### 7.4 勤怠テーブル設計概要 ★新規
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `id` | UUID | 主キー |
+| `employee_id` | UUID | 従業員 ID（employees.id 参照） |
+| `user_id` | UUID | 打刻ユーザー（auth.users 参照、RLS 用） |
+| `work_date` | DATE | 勤務日 |
+| `clock_in` | TIMESTAMPTZ | 出勤時刻（nullable） |
+| `clock_out` | TIMESTAMPTZ | 退勤時刻（nullable） |
+| `break_minutes` | INTEGER | 休憩時間（分）。デフォルト 0 |
+| `status` | TEXT | 勤怠ステータス（present / absent / late / early_leave / holiday / remote） |
+| `note` | TEXT | 備考（nullable） |
+| `created_at` | TIMESTAMPTZ | 作成日時 |
+| `updated_at` | TIMESTAMPTZ | 更新日時（トリガー自動更新） |
+
+**ユニーク制約**: `(employee_id, work_date)` — 同一従業員の同日レコードは1件のみ。
 
 ---
 

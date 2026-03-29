@@ -78,6 +78,14 @@ async fn main() -> anyhow::Result<()> {
             "/leaves/:employee_id/balance-check",
             get(handlers::leaves::balance_check),
         )
+        // 勤怠管理
+        .route("/attendance/clock-in",  post(handlers::attendance::clock_in))
+        .route("/attendance/clock-out", post(handlers::attendance::clock_out))
+        .route("/attendance/today",     get(handlers::attendance::get_today))
+        .route(
+            "/attendance/:employee_id/monthly",
+            get(handlers::attendance::get_monthly),
+        )
         .layer(axum_middleware::from_fn_with_state(
             state.clone(),
             middleware::auth::require_auth,
