@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { supabase } from '@/lib/supabase'
 import type { AttendanceRecord, AttendanceMonthlySummary } from '@/types'
+import { ATTENDANCE_STATUS_LABELS } from '@/types'
 
 export function useAttendance() {
   const todayRecord    = ref<AttendanceRecord | null>(null)
@@ -157,6 +158,65 @@ export function useAttendance() {
     }
   }
 
+  // ----------------------------------------------------------------
+  // 月次勤怠 CSV エクスポート
+  // ----------------------------------------------------------------
+  /**
+   * monthlyRecords の内容を UTF-8 BOM 付き CSV としてダウンロードする。
+   * @param year         対象年
+   * @param month        対象月
+   * @param employeeName ファイル名に付与する従業員名（省略可）
+   */
+  function exportMonthlyCSV(year: number, month: number, employeeName?: string): void {
+    const header = ['日付', 'ステータス', '出勤時刻', '退勤時刻', '休憩(分)', '実働時間', '備考']
+
+    const rows = monthlyRecords.value.map((r) => {
+      const workMin =
+        r.clock_in && r.clock_out
+          ? Math.max(
+              0,
+              Math.floor(
+                (new Date(r.clock_out).getTime() - new Date(r.clock_in).getTime()) / 60_000 -
+                  r.break_minutes,
+              ),
+            )
+          : 0
+
+      const fmtTime = (iso: string | null) =>
+        iso
+          ? new Date(iso).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', hour12: false })
+          : ''
+
+      const fmtWork = (min: number) =>
+        min > 0 ? `${Math.floor(min / 60)}:${String(min % 60).padStart(2, '0')}` : ''
+
+      return [
+        r.work_date,
+        ATTENDANCE_STATUS_LABELS[r.status] ?? r.status,
+        fmtTime(r.clock_in),
+        fmtTime(r.clock_out),
+        String(r.break_minutes),
+        fmtWork(workMin),
+        r.note ?? '',
+      ]
+    })
+
+    const escape = (v: string) => `"${v.replace(/"/g, '""')}"`
+    const csvContent = [header, ...rows]
+      .map((row) => row.map(escape).join(','))
+      .join('\n')
+
+    const bom  = '\uFEFF'
+    const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a')
+    const prefix = employeeName ? `${employeeName}_` : ''
+    a.href     = url
+    a.download = `${prefix}勤怠_${year}年${String(month).padStart(2, '0')}月.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return {
     todayRecord,
     monthlyRecords,
@@ -169,5 +229,6 @@ export function useAttendance() {
     clockIn,
     clockOut,
     fetchMonthlyRecords,
+    exportMonthlyCSV,
   }
 }
