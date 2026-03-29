@@ -21,6 +21,7 @@
 
     <div class="header-actions">
       <span style="font-size:0.8rem; color:var(--text-muted)">{{ todayStr }}</span>
+      <NotificationBell v-if="authStore.user?.id" :user-id="authStore.user.id" />
     </div>
   </header>
 </template>
@@ -30,6 +31,10 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ja'
+import { useAuthStore } from '@/stores/auth'
+import NotificationBell from '@/components/common/NotificationBell.vue'
+
+const authStore = useAuthStore()
 
 dayjs.locale('ja')
 
