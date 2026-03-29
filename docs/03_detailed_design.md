@@ -576,4 +576,159 @@ totalWorkMinutes = Σ max(0, floor((clock_out - clock_in) / 60000) - break_minut
 | 2026-03-29 | useNotifications.test.ts | 19 | ✅ 全件 PASS |
 | 2026-03-29 | StatusBadge.test.ts | 17 | ✅ 全件 PASS |
 | 2026-03-29 | useAttendance.test.ts | 35 | ✅ 全件 PASS |
-| — | **合計** | **90** | **✅ 全件 PASS** |
+| 2026-03-29 | useLeaves.test.ts | 32 | ✅ 全件 PASS |
+| 2026-03-29 | useEmployees.test.ts | 45 | ✅ 全件 PASS |
+| — | **合計** | **167** | **✅ 全件 PASS** |
+
+---
+
+## 休暇管理機能 詳細設計（SCR-07 / useLeaves）
+
+### useLeaves コンポーザブル設計
+
+**ファイル**: `frontend/src/composables/useLeaves.ts`
+
+#### 公開インターフェース
+
+| 名前 | 種別 | 型 | 説明 |
+|---|---|---|---|
+| `requests` | ref | `LeaveRequest[]` | 申請一覧 |
+| `loading` | ref | `boolean` | 通信中フラグ |
+| `error` | ref | `string \| null` | エラーメッセージ |
+| `filters` | ref | `LeaveFilters` | 絞り込み条件（employee_id / status / leave_type / date_from / date_to） |
+| `fetchRequests()` | async fn | `Promise<void>` | フィルターを適用して申請一覧を取得 |
+| `submitRequest(form)` | async fn | `Promise<LeaveRequest>` | 新規申請を登録 |
+| `approveRequest(id, reviewerId, comment?)` | async fn | `Promise<void>` | 申請を承認（有給残日数控除は Rust Backend 側） |
+| `rejectRequest(id, reviewerId, comment)` | async fn | `Promise<void>` | 申請を却下（コメント必須） |
+| `cancelRequest(id)` | async fn | `Promise<void>` | 申請をキャンセル |
+| `applyFilters()` | fn | `void` | フィルターを適用して `fetchRequests` を再実行 |
+
+#### sanitize ロジック
+
+| フィールド | 処理 |
+|---|---|
+| `reason` | `.trim()` → 空文字の場合 `null` |
+
+#### エラーハンドリング方針
+
+- `fetchRequests`: try/catch で包み、エラーを `error.value` にセット（例外は外に漏らさない）
+- `submitRequest` / `approveRequest` / `rejectRequest` / `cancelRequest`: 例外をそのまま throw（呼び出し側の View で捕捉）
+- `rejectRequest`: コメントが空の場合は Supabase 呼び出し前に `throw new Error('却下理由を入力してください')`
+
+---
+
+### 処理フロー
+
+#### fetchRequests フロー
+
+```
+fetchRequests()
+  │
+  ├─[loading = true]
+  ├─[error = null]
+  │
+  ▼
+supabase.from('leave_requests')
+  .select('*, employee:employees(...), reviewer:profiles(...)')
+  [if employee_id] .eq('employee_id', ...)
+  [if status]      .eq('status', ...)
+  [if leave_type]  .eq('leave_type', ...)
+  [if date_from]   .gte('start_date', ...)
+  [if date_to]     .lte('end_date', ...)
+  .order('created_at', { ascending: false })
+  │
+  ├─[成功]─► requests.value = data ?? []
+  │           loading = false
+  │
+  └─[失敗]─► error.value = e.message | '取得に失敗しました'
+              loading = false
+```
+
+#### submitRequest フロー
+
+```
+submitRequest(form)
+  │
+  ▼
+supabase.from('leave_requests')
+  .insert({ employee_id, leave_type, start_date, end_date, days_count, reason: trim||null })
+  .select('*, employee:employees(...)')
+  .single()
+  │
+  ├─[成功]─► LeaveRequest を返す
+  └─[失敗]─► throw err（View 側でハンドリング）
+```
+
+---
+
+## 従業員管理機能 詳細設計（SCR-03〜06 / useEmployees）
+
+### useEmployees コンポーザブル設計
+
+**ファイル**: `frontend/src/composables/useEmployees.ts`
+
+#### 公開インターフェース
+
+| 名前 | 種別 | 型 | 説明 |
+|---|---|---|---|
+| `employees` | ref | `Employee[]` | 従業員一覧（ページネーション分） |
+| `departments` | ref | `Department[]` | 部署一覧（フィルター用） |
+| `loading` | ref | `boolean` | 通信中フラグ |
+| `error` | ref | `string \| null` | エラーメッセージ |
+| `pagination` | ref | `Pagination` | ページネーション情報（page / per_page=20 / total） |
+| `filters` | ref | `EmployeeFilters` | 絞り込み条件 |
+| `totalPages` | computed | `number` | `ceil(total / per_page)` |
+| `fetchDepartments()` | async fn | `Promise<void>` | 部署一覧を取得（フィルター用） |
+| `fetchEmployees()` | async fn | `Promise<void>` | フィルター・ページネーション付き一覧取得 |
+| `fetchEmployee(id)` | async fn | `Promise<Employee \| null>` | 1件取得 |
+| `createEmployee(form)` | async fn | `Promise<Employee>` | 新規登録 |
+| `updateEmployee(id, form)` | async fn | `Promise<Employee>` | 情報更新 |
+| `deleteEmployee(id)` | async fn | `Promise<void>` | 論理削除（status: inactive に更新） |
+| `setPage(page)` | fn | `void` | ページを変更して再取得 |
+| `applyFilters()` | fn | `void` | ページを 1 にリセットして再取得 |
+
+#### sanitize ロジック（createEmployee / updateEmployee 共通）
+
+| フィールド | 処理 |
+|---|---|
+| `employee_code` | `.trim()` |
+| `full_name` | `.trim()` |
+| `full_name_kana` | `.trim()` → 空文字 → `null` |
+| `email` | `.trim().toLowerCase()` |
+| `phone` | `.trim()` → 空文字 → `null` |
+| `department_id` | 空文字 → `null` |
+| `position` | `.trim()` |
+| `birth_date` | 空文字 → `null` |
+| `address` | `.trim()` → 空文字 → `null` |
+| `emergency_contact_name` | `.trim()` → 空文字 → `null` |
+| `emergency_contact_phone` | `.trim()` → 空文字 → `null` |
+| `annual_leave_balance` | `Number(...)` で数値変換 |
+| `notes` | `.trim()` → 空文字 → `null` |
+
+#### deleteEmployee の論理削除
+
+物理削除は行わず `status: 'inactive'` に更新することで退職処理とする。
+これにより休暇申請履歴・勤怠記録との参照整合性を維持する。
+
+#### ページネーション計算
+
+```
+from = (page - 1) * per_page   // 取得開始インデックス
+to   = from + per_page - 1      // 取得終了インデックス
+```
+
+Supabase の `.range(from, to)` に渡し、`count: 'exact'` で総件数を取得する。
+
+---
+
+## テスト実施記録（最終）
+
+| 日付 | ファイル | テスト数 | 結果 |
+|---|---|---|---|
+| 2026-03-29 | useDepartments.test.ts | 19 | ✅ 全件 PASS |
+| 2026-03-29 | useNotifications.test.ts | 19 | ✅ 全件 PASS |
+| 2026-03-29 | StatusBadge.test.ts | 17 | ✅ 全件 PASS |
+| 2026-03-29 | useAttendance.test.ts | 35 | ✅ 全件 PASS |
+| 2026-03-29 | useLeaves.test.ts | 32 | ✅ 全件 PASS |
+| 2026-03-29 | useEmployees.test.ts | 45 | ✅ 全件 PASS |
+| — | **合計** | **167** | **✅ 全件 PASS** |
