@@ -180,6 +180,115 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
   remote:      'リモート',
 }
 
+// ============================================================
+// 給与管理
+// ============================================================
+export type PayslipStatus = 'draft' | 'confirmed'
+
+export interface SalaryTemplate {
+  id: string
+  employee_id: string
+  basic_salary: number
+  housing_allowance: number
+  commute_allowance: number
+  family_allowance: number
+  position_allowance: number
+  overtime_unit_price: number
+  health_insurance: number
+  pension_insurance: number
+  employment_insurance: number
+  income_tax: number
+  resident_tax: number
+  note: string | null
+  effective_from: string
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // JOIN
+  employee?: Employee | null
+}
+
+export interface Payslip {
+  id: string
+  employee_id: string
+  pay_year: number
+  pay_month: number
+  basic_salary: number
+  housing_allowance: number
+  commute_allowance: number
+  family_allowance: number
+  position_allowance: number
+  overtime_pay: number
+  other_allowance: number
+  health_insurance: number
+  pension_insurance: number
+  employment_insurance: number
+  income_tax: number
+  resident_tax: number
+  other_deduction: number
+  total_payment: number
+  total_deduction: number
+  net_payment: number
+  status: PayslipStatus
+  note: string | null
+  confirmed_by: string | null
+  confirmed_at: string | null
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  // JOIN
+  employee?: Employee | null
+}
+
+export interface SalaryTemplateFormData {
+  employee_id: string
+  basic_salary: number
+  housing_allowance: number
+  commute_allowance: number
+  family_allowance: number
+  position_allowance: number
+  overtime_unit_price: number
+  health_insurance: number
+  pension_insurance: number
+  employment_insurance: number
+  income_tax: number
+  resident_tax: number
+  note: string
+  effective_from: string
+}
+
+export interface PayslipFormData {
+  employee_id: string
+  pay_year: number
+  pay_month: number
+  basic_salary: number
+  housing_allowance: number
+  commute_allowance: number
+  family_allowance: number
+  position_allowance: number
+  overtime_pay: number
+  other_allowance: number
+  health_insurance: number
+  pension_insurance: number
+  employment_insurance: number
+  income_tax: number
+  resident_tax: number
+  other_deduction: number
+  note: string
+}
+
+export interface PayslipFilters {
+  employee_id: string
+  pay_year: number | ''
+  pay_month: number | ''
+  status: PayslipStatus | ''
+}
+
+export const PAYSLIP_STATUS_LABELS: Record<PayslipStatus, string> = {
+  draft:     '未確定',
+  confirmed: '確定済み',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
