@@ -48,6 +48,12 @@ const router = createRouter({
           name: 'leaves',
           component: () => import('@/views/LeaveManagementView.vue'),
         },
+        {
+          path: 'departments',
+          name: 'departments',
+          component: () => import('@/views/DepartmentView.vue'),
+          meta: { requiresAdmin: true },
+        },
       ],
     },
     {
@@ -67,6 +73,10 @@ router.beforeEach(async (to) => {
 
   if (to.meta.requiresAuth && !auth.isAuthenticated) {
     return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
+  if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'dashboard' }
   }
 
   if (to.name === 'login' && auth.isAuthenticated) {

@@ -51,11 +51,19 @@ const auth = useAuthStore()
 const route = useRoute()
 const router = useRouter()
 
-const navItems = [
+const baseItems = [
   { to: '/',          icon: 'bi bi-grid-1x2',        label: 'ダッシュボード' },
   { to: '/employees', icon: 'bi bi-people',           label: '従業員一覧' },
   { to: '/leaves',    icon: 'bi bi-calendar-check',   label: '休暇申請・承認' },
 ]
+
+const adminItems = [
+  { to: '/departments', icon: 'bi bi-diagram-3',     label: '部署管理' },
+]
+
+const navItems = computed(() =>
+  auth.isAdmin ? [...baseItems, ...adminItems] : baseItems
+)
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'
