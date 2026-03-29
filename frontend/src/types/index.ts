@@ -124,6 +124,20 @@ export interface LeaveFilters {
   date_to: string
 }
 
+// 通知
+export type NotificationType = 'leave_approved' | 'leave_rejected' | 'leave_submitted' | 'system'
+
+export interface Notification {
+  id: string
+  user_id: string
+  type: NotificationType
+  title: string
+  message: string
+  related_id: string | null
+  is_read: boolean
+  created_at: string
+}
+
 // ページネーション
 export interface Pagination {
   page: number
