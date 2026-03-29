@@ -80,6 +80,12 @@ export interface DashboardSummary {
 }
 
 // フォーム用
+export interface DepartmentFormData {
+  name: string
+  code: string
+  description: string
+}
+
 export interface EmployeeFormData {
   employee_code: string
   full_name: string
