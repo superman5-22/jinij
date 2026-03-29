@@ -49,6 +49,11 @@ const router = createRouter({
           component: () => import('@/views/LeaveManagementView.vue'),
         },
         {
+          path: 'attendance',
+          name: 'attendance',
+          component: () => import('@/views/AttendanceView.vue'),
+        },
+        {
           path: 'departments',
           name: 'departments',
           component: () => import('@/views/DepartmentView.vue'),

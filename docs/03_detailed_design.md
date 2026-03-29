@@ -1,13 +1,14 @@
 # 詳細設計書
 
 **システム名**: jinij — 社内人事管理システム
-**バージョン**: 1.0
+**バージョン**: 1.1
 **作成日**: 2026-03-29
 **改訂履歴**:
 
 | バージョン | 日付 | 変更内容 | 担当者 |
 |---|---|---|---|
 | 1.0 | 2026-03-29 | 初版作成（部署管理機能） | - |
+| 1.1 | 2026-03-29 | 勤怠管理機能追加（SCR-09、F-60〜F-66） | - |
 
 ---
 
@@ -338,3 +339,241 @@ npx --no vitest run
 | 2026-03-29 | useNotifications.test.ts | 19 | ✅ 全件 PASS |
 | 2026-03-29 | StatusBadge.test.ts | 17 | ✅ 全件 PASS |
 | — | **合計** | **55** | **✅ 全件 PASS** |
+
+---
+
+## 勤怠管理機能 詳細設計（SCR-09）
+
+### SCR-09 勤怠管理画面（`/attendance`）
+
+#### 画面レイアウト概要
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  勤怠管理                  [◄ 2026年3月 ►]              │
+│  出退勤の打刻・勤怠実績の確認                            │
+├─────────────────────────────────────────────────────────┤
+│ 本日の打刻状況（カード）                                 │
+│  2026年3月29日（土）                                     │
+│  出勤: 09:00   退勤: —   実働: —                        │
+│  [出勤ボタン（緑）] [退勤ボタン（赤）]                  │
+├─────────────────────────────────────────────────────────┤
+│ サマリーカード × 4                                       │
+│  [出勤日数: 18日] [合計実働: 136h0m]                    │
+│  [欠勤日数:  0日] [遅刻日数:  1日]                      │
+├─────────────────────────────────────────────────────────┤
+│ 2026年3月の勤怠実績 テーブル                            │
+│  日付    ステータス  出勤   退勤   休憩  実働   備考     │
+│  3/2（月） 出勤     09:01  18:03  60分  8h2m  —        │
+│  3/3（火） 遅刻     10:15  18:00  60分  6h45m —        │
+└─────────────────────────────────────────────────────────┘
+```
+
+#### 項目定義
+
+| 項目 | 表示条件 | 型 | 備考 |
+|---|---|---|---|
+| 本日の打刻カード | 従業員レコードが存在する場合 | カード | `myEmployee` が null の場合は非表示 |
+| 出勤時刻 | 常時 | 文字列 | `HH:mm` 形式。未打刻は「—」 |
+| 退勤時刻 | 常時 | 文字列 | `HH:mm` 形式。未打刻は「—」 |
+| 実働時間 | 常時 | 文字列 | `Xh Ym` 形式。未完了は「—」 |
+| 出勤ボタン | 常時 | ボタン | 出勤打刻済み or ローディング中は disabled |
+| 退勤ボタン | 常時 | ボタン | 未出勤 or 退勤済み or ローディング中は disabled |
+
+#### 退勤モーダル項目定義
+
+| フィールド | 必須 | 型 | デフォルト | バリデーション |
+|---|---|---|---|---|
+| 休憩時間（分） | — | number | 60 | 0以上の整数 |
+| 備考 | — | text | '' | 任意入力 |
+
+#### 入力チェック仕様
+
+| チェック | 条件 | 動作 |
+|---|---|---|
+| 出勤重複防止 | 当日に出勤レコードが存在する | 出勤ボタンを disabled にする（UI 側）/ DB の UNIQUE 制約（DB 側） |
+| 退勤前提チェック | 退勤ボタン押下時に todayRecord が null | `error.value = '出勤記録がありません'` をセット |
+| 休憩時間下限 | break_minutes が負の値 | `Math.max(0, breakMinutes)` でクランプ |
+
+#### イベント処理
+
+| イベント | ハンドラ | 処理概要 |
+|---|---|---|
+| [出勤] クリック | `handleClockIn()` | `clockIn(employeeId)` を呼び出す |
+| [退勤] クリック | `showClockOutModal = true` | 退勤モーダルを表示 |
+| モーダル [退勤する] クリック | `handleClockOut()` | `clockOut(employeeId, break, note)` を呼び出す |
+| [◄][►] クリック | `prevMonth()` / `nextMonth()` | 月を変更し `fetchMonthlyRecords` を再実行 |
+
+---
+
+### useAttendance コンポーザブル設計
+
+#### 公開インターフェース
+
+| 名前 | 種別 | 型 | 説明 |
+|---|---|---|---|
+| `todayRecord` | ref | `AttendanceRecord \| null` | 本日の打刻レコード |
+| `monthlyRecords` | ref | `AttendanceRecord[]` | 月次レコード一覧 |
+| `isLoading` | ref | `boolean` | 通信中フラグ |
+| `error` | ref | `string \| null` | エラーメッセージ |
+| `isClockedIn` | computed | `boolean` | 出勤打刻済みか |
+| `isClockedOut` | computed | `boolean` | 退勤打刻済みか |
+| `totalWorkMinutes` | computed | `number` | 月次合計実働時間（分） |
+| `fetchTodayRecord(employeeId)` | async fn | `Promise<void>` | 本日レコード取得 |
+| `clockIn(employeeId, note?)` | async fn | `Promise<void>` | 出勤打刻 |
+| `clockOut(employeeId, break?, note?)` | async fn | `Promise<void>` | 退勤打刻 |
+| `fetchMonthlyRecords(employeeId, year, month)` | async fn | `Promise<void>` | 月次レコード取得 |
+
+#### totalWorkMinutes 算出ロジック
+
+```
+totalWorkMinutes = Σ max(0, floor((clock_out - clock_in) / 60000) - break_minutes)
+                   ※ clock_in または clock_out が null のレコードは除外
+```
+
+---
+
+### バックエンド API 詳細設計
+
+#### POST /api/v1/attendance/clock-in
+
+| 項目 | 内容 |
+|---|---|
+| 認証 | JWT 必須 |
+| リクエストボディ | `{ employee_id: UUID, note?: string }` |
+| 正常レスポンス | 200 `{ message: "出勤しました", record: AttendanceRecord }` |
+| エラー: 重複 | 400 `{ error: "本日はすでに出勤打刻済みです" }` |
+| 処理フロー | ① 同日レコード存在チェック → ② INSERT attendance_records |
+
+#### POST /api/v1/attendance/clock-out
+
+| 項目 | 内容 |
+|---|---|
+| 認証 | JWT 必須 |
+| リクエストボディ | `{ employee_id: UUID, break_minutes?: i32, note?: string }` |
+| 正常レスポンス | 200 `{ message: "退勤しました", record: AttendanceRecord }` |
+| エラー: 出勤なし | 400 `{ error: "本日の出勤記録が見つかりません..." }` |
+| 処理フロー | ① `clock_out IS NULL` の当日レコードを UPDATE |
+
+#### GET /api/v1/attendance/today?employee_id=xxx
+
+| 項目 | 内容 |
+|---|---|
+| 認証 | JWT 必須 |
+| クエリパラメーター | `employee_id: UUID` |
+| 正常レスポンス | 200 `{ record: AttendanceRecord \| null }` |
+
+#### GET /api/v1/attendance/:employee_id/monthly?year=&month=
+
+| 項目 | 内容 |
+|---|---|
+| 認証 | JWT 必須 |
+| パスパラメーター | `employee_id: UUID` |
+| クエリパラメーター | `year: i32, month: u32` |
+| 正常レスポンス | 200 `MonthlySummary` |
+| エラー: 無効な年月 | 400 `{ error: "無効な年月です" }` |
+| 処理フロー | ① start_date/end_date を算出 → ② SELECT where work_date in [start, end) |
+
+---
+
+### データベース詳細設計 — attendance_records
+
+| カラム | 型 | NULL | デフォルト | 制約 | 説明 |
+|---|---|---|---|---|---|
+| `id` | UUID | NOT NULL | gen_random_uuid() | PK | 主キー |
+| `employee_id` | UUID | NOT NULL | — | FK employees(id) CASCADE | 従業員 ID |
+| `user_id` | UUID | NOT NULL | — | FK auth.users(id) CASCADE | 打刻ユーザー（RLS 用） |
+| `work_date` | DATE | NOT NULL | — | UNIQUE(employee_id, work_date) | 勤務日 |
+| `clock_in` | TIMESTAMPTZ | NULL | NULL | — | 出勤時刻 |
+| `clock_out` | TIMESTAMPTZ | NULL | NULL | — | 退勤時刻 |
+| `break_minutes` | INTEGER | NOT NULL | 0 | CHECK >= 0 | 休憩時間（分） |
+| `status` | TEXT | NOT NULL | 'present' | CHECK in enum | 勤怠ステータス |
+| `note` | TEXT | NULL | NULL | — | 備考 |
+| `created_at` | TIMESTAMPTZ | NOT NULL | NOW() | — | 作成日時 |
+| `updated_at` | TIMESTAMPTZ | NOT NULL | NOW() | トリガー自動更新 | 更新日時 |
+
+**インデックス**:
+- `idx_attendance_employee_id` on `employee_id`
+- `idx_attendance_work_date` on `work_date`
+- `idx_attendance_user_id` on `user_id`
+
+---
+
+### セキュリティ設計
+
+| 対象 | 方針 |
+|---|---|
+| フロント → Supabase 直接操作 | RLS により `user_id = auth.uid()` のレコードのみ SELECT/INSERT/UPDATE 可 |
+| manager / hr / admin の全件参照 | `profiles.role IN ('manager','hr','admin')` を条件とする SELECT ポリシー追加 |
+| hr / admin の全件管理 | `profiles.role IN ('hr','admin')` を条件とする ALL ポリシー追加 |
+| フロント → Rust API | `require_auth` ミドルウェアで JWT 検証。clock-in/out は自分の employee_id に対してのみ操作可能とする |
+
+---
+
+## 単体テスト設計 — useAttendance
+
+### テスト対象
+
+`frontend/src/composables/useAttendance.ts`
+
+### テストファイル
+
+`frontend/src/composables/__tests__/useAttendance.test.ts`
+
+### テスト実施結果（2026-03-29）
+
+| 日付 | ファイル | テスト数 | 結果 |
+|---|---|---|---|
+| 2026-03-29 | useAttendance.test.ts | 35 | ✅ 全件 PASS |
+
+### テストケース一覧
+
+| # | テストグループ | テストケース | テスト観点 | 期待結果 |
+|---|---|---|---|---|
+| 1 | 初期状態 | todayRecord は null | 初期値 | `null` |
+| 2 | 初期状態 | monthlyRecords は空配列 | 初期値 | `[]` |
+| 3 | 初期状態 | isLoading は false | 初期値 | `false` |
+| 4 | 初期状態 | error は null | 初期値 | `null` |
+| 5 | 初期状態 | isClockedIn は false | 初期値（computed） | `false` |
+| 6 | 初期状態 | isClockedOut は false | 初期値（computed） | `false` |
+| 7 | isClockedIn/Out | clock_in のみある場合 | 正常系 | `true / false` |
+| 8 | isClockedIn/Out | clock_in と clock_out 両方 | 正常系 | `true / true` |
+| 9 | totalWorkMinutes | 揃っているレコードのみ集計 | 正常系 | `480` |
+| 10 | totalWorkMinutes | レコードが空のとき 0 | 境界値 | `0` |
+| 11 | totalWorkMinutes | break > 実働 → 0 クランプ | 異常系・境界値 | `0` |
+| 12 | totalWorkMinutes | 複数レコード合計 | 正常系 | `900` |
+| 13 | fetchTodayRecord | 正常取得 | 正常系 | レコードがセットされる |
+| 14 | fetchTodayRecord | data が null | 正常系（データなし） | `null` |
+| 15 | fetchTodayRecord | isLoading が false に戻る | ローディング状態 | `false` |
+| 16 | fetchTodayRecord | Supabase エラーオブジェクト | 異常系 | error にメッセージ |
+| 17 | fetchTodayRecord | 例外スロー | 異常系 | error にメッセージ |
+| 18 | clockIn | 正常打刻 | 正常系 | todayRecord が更新される |
+| 19 | clockIn | employee_id が正しく渡る | 入力値検証 | insert に正しい id |
+| 20 | clockIn | note が渡された場合 | 入力値検証 | note が insert に含まれる |
+| 21 | clockIn | note 未指定 → null | 入力値検証 | `note: null` |
+| 22 | clockIn | 未認証 | 異常系 | error セット・insert 非実行 |
+| 23 | clockIn | Supabase エラー | 異常系 | error にメッセージ |
+| 24 | clockIn | isLoading が false に戻る | ローディング状態 | `false` |
+| 25 | clockOut | 正常退勤 | 正常系 | todayRecord が更新される |
+| 26 | clockOut | todayRecord が null | 異常系 | error セット・update 非実行 |
+| 27 | clockOut | eq に正しい id が渡る | 入力値検証 | eq('id', 'rec-target') |
+| 28 | clockOut | break_minutes が負 → 0 | 境界値 | `break_minutes: 0` |
+| 29 | clockOut | isLoading が false に戻る | ローディング状態 | `false` |
+| 30 | fetchMonthlyRecords | 正常取得 | 正常系 | monthlyRecords が更新される |
+| 31 | fetchMonthlyRecords | data が null → 空配列 | 正常系（データなし） | `[]` |
+| 32 | fetchMonthlyRecords | 12月の年跨ぎ範囲 | 境界値 | gte='2026-12-01', lt='2027-01-01' |
+| 33 | fetchMonthlyRecords | 1月の範囲 | 境界値 | gte='2026-01-01', lt='2026-02-01' |
+| 34 | fetchMonthlyRecords | Supabase エラー | 異常系 | error にメッセージ |
+| 35 | fetchMonthlyRecords | isLoading が false に戻る | ローディング状態 | `false` |
+
+---
+
+## テスト実施記録（累計）
+
+| 日付 | ファイル | テスト数 | 結果 |
+|---|---|---|---|
+| 2026-03-29 | useDepartments.test.ts | 19 | ✅ 全件 PASS |
+| 2026-03-29 | useNotifications.test.ts | 19 | ✅ 全件 PASS |
+| 2026-03-29 | StatusBadge.test.ts | 17 | ✅ 全件 PASS |
+| 2026-03-29 | useAttendance.test.ts | 35 | ✅ 全件 PASS |
+| — | **合計** | **90** | **✅ 全件 PASS** |

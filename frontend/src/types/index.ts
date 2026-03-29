@@ -144,6 +144,42 @@ export interface Notification {
   created_at: string
 }
 
+// 勤怠管理
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'early_leave' | 'holiday' | 'remote'
+
+export interface AttendanceRecord {
+  id:            string
+  employee_id:   string
+  user_id:       string
+  work_date:     string        // ISO date string 'YYYY-MM-DD'
+  clock_in:      string | null // ISO datetime string
+  clock_out:     string | null // ISO datetime string
+  break_minutes: number
+  status:        AttendanceStatus
+  note:          string | null
+  created_at:    string
+  updated_at:    string
+}
+
+export interface AttendanceMonthlySummary {
+  year:               number
+  month:              number
+  total_work_days:    number
+  total_work_minutes: number
+  absent_days:        number
+  late_days:          number
+  records:            AttendanceRecord[]
+}
+
+export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
+  present:     '出勤',
+  absent:      '欠勤',
+  late:        '遅刻',
+  early_leave: '早退',
+  holiday:     '休日',
+  remote:      'リモート',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
