@@ -180,6 +180,44 @@ export const ATTENDANCE_STATUS_LABELS: Record<AttendanceStatus, string> = {
   remote:      'リモート',
 }
 
+// 給与管理
+export interface SalaryRecord {
+  id:           string
+  employee_id:  string
+  year:         number
+  month:        number
+  base_salary:  number
+  overtime_pay: number
+  allowances:   number
+  deductions:   number
+  net_salary:   number  // Generated column: base + overtime + allowances - deductions
+  paid_at:      string | null  // ISO date 'YYYY-MM-DD'
+  notes:        string | null
+  created_by:   string | null
+  created_at:   string
+  updated_at:   string
+  // JOIN
+  employee?: Employee | null
+}
+
+export interface SalaryFormData {
+  employee_id:  string
+  year:         number
+  month:        number
+  base_salary:  number
+  overtime_pay: number
+  allowances:   number
+  deductions:   number
+  paid_at:      string
+  notes:        string
+}
+
+export interface SalaryFilters {
+  employee_id: string
+  year:        number | ''
+  month:       number | ''
+}
+
 // ページネーション
 export interface Pagination {
   page: number
