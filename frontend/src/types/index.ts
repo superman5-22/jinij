@@ -218,6 +218,54 @@ export interface SalaryFilters {
   month:       number | ''
 }
 
+// お知らせ
+export type AnnouncementCategory = 'general' | 'hr' | 'event' | 'urgent'
+
+export interface Announcement {
+  id:           string
+  title:        string
+  body:         string
+  category:     AnnouncementCategory
+  is_pinned:    boolean
+  published_at: string | null
+  expires_at:   string | null
+  created_by:   string
+  created_at:   string
+  updated_at:   string
+  // JOIN (既読状態)
+  is_read?:     boolean
+  author?:      Pick<Profile, 'id' | 'full_name' | 'email'> | null
+}
+
+export interface AnnouncementFormData {
+  title:        string
+  body:         string
+  category:     AnnouncementCategory
+  is_pinned:    boolean
+  published_at: string  // ISO datetime string or ''
+  expires_at:   string  // ISO datetime string or ''
+}
+
+export interface AnnouncementFilters {
+  category: AnnouncementCategory | ''
+  keyword:  string
+  show_all: boolean  // HR/admin: 下書き含む全件表示フラグ
+}
+
+export const ANNOUNCEMENT_CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
+  general: '一般',
+  hr:      '人事',
+  event:   'イベント',
+  urgent:  '緊急',
+}
+
+export const ANNOUNCEMENT_CATEGORY_COLORS: Record<AnnouncementCategory, string> = {
+  general: 'secondary',
+  hr:      'primary',
+  event:   'info',
+  urgent:  'danger',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
