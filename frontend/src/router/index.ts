@@ -60,6 +60,11 @@ const router = createRouter({
           meta: { requiresHR: true },
         },
         {
+          path: 'overtime',
+          name: 'overtime',
+          component: () => import('@/views/OvertimeView.vue'),
+        },
+        {
           path: 'performance-reviews',
           name: 'performance-reviews',
           component: () => import('@/views/PerformanceReviewView.vue'),

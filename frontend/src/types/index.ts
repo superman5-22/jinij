@@ -295,6 +295,53 @@ export const RATING_LABELS: Record<number, string> = {
   5: 'D（不十分）',
 }
 
+// ============================================================
+// 残業申請
+// ============================================================
+export type OvertimeStatus = 'pending' | 'approved' | 'rejected' | 'cancelled'
+
+export interface OvertimeRequest {
+  id:             string
+  employee_id:    string
+  user_id:        string
+  work_date:      string         // 'YYYY-MM-DD'
+  planned_end:    string         // 'HH:MM:SS'
+  actual_end:     string | null  // 'HH:MM:SS'
+  overtime_hours: number
+  reason:         string
+  status:         OvertimeStatus
+  reviewed_by:    string | null
+  reviewed_at:    string | null
+  review_comment: string | null
+  created_at:     string
+  updated_at:     string
+  // JOIN
+  employee?: Employee | null
+  reviewer?: { id: string; full_name: string | null } | null
+}
+
+export interface OvertimeRequestFormData {
+  employee_id:    string
+  work_date:      string
+  planned_end:    string
+  overtime_hours: number
+  reason:         string
+}
+
+export interface OvertimeFilters {
+  employee_id: string
+  status:      OvertimeStatus | ''
+  date_from:   string
+  date_to:     string
+}
+
+export const OVERTIME_STATUS_LABELS: Record<OvertimeStatus, string> = {
+  pending:   '承認待ち',
+  approved:  '承認済み',
+  rejected:  '却下',
+  cancelled: 'キャンセル',
+}
+
 // ページネーション
 export interface Pagination {
   page: number

@@ -56,6 +56,7 @@ const baseItems = [
   { to: '/employees',  icon: 'bi bi-people',           label: '従業員一覧' },
   { to: '/leaves',     icon: 'bi bi-calendar-check',   label: '休暇申請・承認' },
   { to: '/attendance', icon: 'bi bi-clock',            label: '勤怠管理' },
+  { to: '/overtime',   icon: 'bi bi-hourglass-split',  label: '残業申請' },
 ]
 
 const hrItems = [
