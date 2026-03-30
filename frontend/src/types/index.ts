@@ -218,6 +218,83 @@ export interface SalaryFilters {
   month:       number | ''
 }
 
+// ============================================================
+// 人事評価
+// ============================================================
+export type ReviewType   = 'quarterly' | 'semi_annual' | 'annual'
+export type ReviewStatus = 'draft' | 'submitted' | 'acknowledged'
+
+export interface PerformanceReview {
+  id:                 string
+  employee_id:        string
+  reviewer_id:        string | null
+  review_year:        number
+  review_type:        ReviewType
+  review_quarter:     number | null
+  overall_rating:     number
+  performance_score:  number
+  behavior_score:     number
+  skill_score:        number
+  goals_achievement:  string | null
+  strengths:          string | null
+  improvements:       string | null
+  next_goals:         string | null
+  self_comment:       string | null
+  reviewer_comment:   string | null
+  status:             ReviewStatus
+  submitted_at:       string | null
+  acknowledged_at:    string | null
+  created_by:         string | null
+  created_at:         string
+  updated_at:         string
+  // JOIN
+  employee?: Employee | null
+}
+
+export interface PerformanceReviewFormData {
+  employee_id:        string
+  review_year:        number
+  review_type:        ReviewType
+  review_quarter:     number | null
+  overall_rating:     number
+  performance_score:  number
+  behavior_score:     number
+  skill_score:        number
+  goals_achievement:  string
+  strengths:          string
+  improvements:       string
+  next_goals:         string
+  self_comment:       string
+  reviewer_comment:   string
+}
+
+export interface PerformanceReviewFilters {
+  employee_id: string
+  review_year: number | ''
+  review_type: ReviewType | ''
+  status:      ReviewStatus | ''
+}
+
+export const REVIEW_TYPE_LABELS: Record<ReviewType, string> = {
+  quarterly:    '四半期評価',
+  semi_annual:  '半期評価',
+  annual:       '年次評価',
+}
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  draft:        '作成中',
+  submitted:    '提出済み',
+  acknowledged: '確認済み',
+}
+
+export const RATING_LABELS: Record<number, string> = {
+  1: 'S（卓越）',
+  2: 'A（優秀）',
+  3: 'B（標準）',
+  4: 'C（要改善）',
+  5: 'D（不十分）',
+}
+
 // ページネーション
 export interface Pagination {
   page: number

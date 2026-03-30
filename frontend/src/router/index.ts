@@ -60,6 +60,11 @@ const router = createRouter({
           meta: { requiresHR: true },
         },
         {
+          path: 'performance-reviews',
+          name: 'performance-reviews',
+          component: () => import('@/views/PerformanceReviewView.vue'),
+        },
+        {
           path: 'departments',
           name: 'departments',
           component: () => import('@/views/DepartmentView.vue'),

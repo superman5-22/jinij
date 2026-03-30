@@ -59,16 +59,22 @@ const baseItems = [
 ]
 
 const hrItems = [
-  { to: '/salary',     icon: 'bi bi-cash-coin',        label: '給与管理' },
+  { to: '/salary',               icon: 'bi bi-cash-coin',        label: '給与管理' },
+  { to: '/performance-reviews',  icon: 'bi bi-star-half',        label: '人事評価' },
 ]
 
 const adminItems = [
   { to: '/departments', icon: 'bi bi-diagram-3',       label: '部署管理' },
 ]
 
+const managerItems = [
+  { to: '/performance-reviews', icon: 'bi bi-star-half', label: '人事評価' },
+]
+
 const navItems = computed(() => {
-  if (auth.isAdmin) return [...baseItems, ...hrItems, ...adminItems]
-  if (auth.isHR)    return [...baseItems, ...hrItems]
+  if (auth.isAdmin)                          return [...baseItems, ...hrItems, ...adminItems]
+  if (auth.isHR)                             return [...baseItems, ...hrItems]
+  if (auth.profile?.role === 'manager')      return [...baseItems, ...managerItems]
   return baseItems
 })
 
