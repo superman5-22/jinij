@@ -295,6 +295,52 @@ export const RATING_LABELS: Record<number, string> = {
   5: 'D（不十分）',
 }
 
+// ============================================================
+// お知らせ（掲示板）
+// ============================================================
+export type AnnouncementCategory = 'general' | 'important' | 'event' | 'hr'
+
+export interface Announcement {
+  id:           string
+  title:        string
+  content:      string
+  category:     AnnouncementCategory
+  is_pinned:    boolean
+  published_at: string | null  // ISO datetime, null = 下書き
+  expires_at:   string | null  // ISO datetime, null = 無期限
+  created_by:   string | null
+  created_at:   string
+  updated_at:   string
+}
+
+export interface AnnouncementFormData {
+  title:        string
+  content:      string
+  category:     AnnouncementCategory
+  is_pinned:    boolean
+  published_at: string  // '' = 下書き
+  expires_at:   string  // '' = 無期限
+}
+
+export interface AnnouncementFilters {
+  category:    AnnouncementCategory | ''
+  include_drafts: boolean
+}
+
+export const ANNOUNCEMENT_CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
+  general:   '一般',
+  important: '重要',
+  event:     'イベント',
+  hr:        '人事',
+}
+
+export const ANNOUNCEMENT_CATEGORY_COLORS: Record<AnnouncementCategory, string> = {
+  general:   'secondary',
+  important: 'danger',
+  event:     'success',
+  hr:        'primary',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
