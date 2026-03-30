@@ -1,7 +1,7 @@
 # 基本設計書
 
 **システム名**: jinij — 社内人事管理システム
-**バージョン**: 1.2
+**バージョン**: 1.4
 **作成日**: 2026-03-29
 **改訂履歴**:
 
@@ -10,6 +10,8 @@
 | 1.0 | 2026-03-29 | 初版作成 | - |
 | 1.1 | 2026-03-29 | 部署管理機能追加（SCR-08、F-50〜F-54） | - |
 | 1.2 | 2026-03-29 | 勤怠管理機能追加（SCR-09、F-60〜F-66） | - |
+| 1.3 | 2026-03-30 | 給与管理機能追加（SCR-10） | - |
+| 1.4 | 2026-03-30 | 目標・評価管理機能追加（SCR-11、F-80〜F-89） | - |
 
 ---
 
@@ -96,14 +98,25 @@ jinij
 │   ├── F-42 既読処理
 │   ├── F-43 全件既読
 │   └── F-44 Realtime リアルタイム更新
-└── 勤怠管理 ★新規
-    ├── F-60 出勤打刻
-    ├── F-61 退勤打刻（休憩時間入力付き）
-    ├── F-62 本日打刻状況確認
-    ├── F-63 月次勤怠一覧
-    ├── F-64 月次サマリー
-    ├── F-65 月移動
-    └── F-66 バリデーション（重複打刻防止）
+├── 勤怠管理
+│   ├── F-60 出勤打刻
+│   ├── F-61 退勤打刻（休憩時間入力付き）
+│   ├── F-62 本日打刻状況確認
+│   ├── F-63 月次勤怠一覧
+│   ├── F-64 月次サマリー
+│   ├── F-65 月移動
+│   └── F-66 バリデーション（重複打刻防止）
+└── 目標・評価管理 ★新規
+    ├── F-80 評価期間管理（HR/admin）
+    ├── F-81 目標登録
+    ├── F-82 目標一覧表示
+    ├── F-83 目標ステータス更新
+    ├── F-84 目標削除（HR/admin）
+    ├── F-85 評価開始
+    ├── F-86 自己評価入力
+    ├── F-87 上長評価入力・確定
+    ├── F-88 評価閲覧
+    └── F-89 バリデーション（スコア範囲・必須入力）
 ```
 
 ---
@@ -123,6 +136,8 @@ jinij
 | SCR-07 | 休暇申請・承認 | `/leaves` | 全ロール |
 | SCR-08 | 部署管理 | `/departments` | admin のみ（閲覧は全ロール） |
 | SCR-09 | 勤怠管理 | `/attendance` | 全ロール |
+| SCR-10 | 給与管理 | `/salary` | hr / admin（本人は参照のみ） |
+| SCR-11 | 目標・評価管理 | `/performance` | 全ロール（権限により操作範囲異なる）★新規 |
 
 ### 3.2 画面遷移図
 
@@ -152,10 +167,18 @@ SCR-02 ダッシュボード ◄────────────────
     │                                             │
     │                              [新規登録/編集/削除（admin）]
     │
-    └─[サイドバー: 勤怠管理]──► SCR-09 勤怠管理
-                                      │
-                         [出勤ボタン / 退勤ボタン]
-                         [月切替 ◄ YYYY年MM月 ►]
+    ├─[サイドバー: 勤怠管理]──► SCR-09 勤怠管理
+    │                                 │
+    │                    [出勤ボタン / 退勤ボタン]
+    │                    [月切替 ◄ YYYY年MM月 ►]
+    │
+    └─[サイドバー: 目標・評価]──► SCR-11 目標・評価管理 ★新規
+                                       │
+                          [評価期間選択ドロップダウン]
+                          [タブ: 目標一覧 / 評価]
+                               │           │
+                          [目標カード]  [評価カード]
+                          [追加/完了/削除]  [自己評価/上長評価フォーム]
 ```
 
 ### 3.3 通知ドロップダウン（全画面共通）
@@ -209,6 +232,9 @@ SCR-02 ダッシュボード ◄────────────────
 | `/rest/v1/leave_requests` | GET/POST/PATCH | 休暇申請 CRUD | JWT + RLS |
 | `/rest/v1/departments` | GET/POST/PATCH/DELETE | 部署 CRUD | JWT + RLS |
 | `/rest/v1/notifications` | GET/PATCH | 通知取得・既読更新 | JWT + RLS |
+| `/rest/v1/review_periods` | GET/POST/PATCH | 評価期間 CRUD | JWT + RLS |
+| `/rest/v1/goals` | GET/POST/PATCH/DELETE | 目標 CRUD | JWT + RLS |
+| `/rest/v1/performance_reviews` | GET/POST/PATCH | 評価レコード CRUD | JWT + RLS |
 | `/realtime/v1/websocket` | WS | Realtime 通知 | JWT |
 
 ### 6.2 Rust Backend API
@@ -260,7 +286,11 @@ notifications ──────► auth.users (user_id)
 | `employees` | 従業員情報（40+ 項目） | UUID |
 | `leave_requests` | 休暇申請（ステータス管理） | UUID |
 | `notifications` | アプリ内通知（★新規） | UUID |
-| `attendance_records` | 勤怠記録（出退勤打刻・ステータス）（★新規） | UUID |
+| `attendance_records` | 勤怠記録（出退勤打刻・ステータス） | UUID |
+| `salary_records` | 給与明細（月次・従業員別） | UUID |
+| `review_periods` | 評価期間マスタ（★新規） | UUID |
+| `goals` | 目標（従業員・評価期間別）（★新規） | UUID |
+| `performance_reviews` | 評価レコード（自己評価・上長評価・最終ランク）（★新規） | UUID |
 | `audit_logs` | 操作監査ログ | UUID |
 
 ### 7.3 通知テーブル設計概要 ★新規
@@ -295,6 +325,46 @@ notifications ──────► auth.users (user_id)
 | `updated_at` | TIMESTAMPTZ | 更新日時（トリガー自動更新） |
 
 **ユニーク制約**: `(employee_id, work_date)` — 同一従業員の同日レコードは1件のみ。
+
+### 7.5 目標・評価テーブル設計概要 ★新規
+
+**review_periods（評価期間マスタ）**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `id` | UUID | 主キー |
+| `name` | TEXT | 期間名称（例: 2026年上期） |
+| `start_date` | DATE | 開始日 |
+| `end_date` | DATE | 終了日 |
+| `is_active` | BOOLEAN | 進行中フラグ（デフォルト false） |
+
+**goals（目標）**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `id` | UUID | 主キー |
+| `employee_id` | UUID | 従業員 ID（employees.id 参照） |
+| `review_period_id` | UUID | 評価期間 ID |
+| `title` | TEXT | 目標タイトル（必須） |
+| `category` | TEXT | カテゴリ（business / skill / behavior / other） |
+| `target_value` | TEXT | 定量目標（任意） |
+| `weight` | INTEGER | ウェイト 1〜100（合計 100% が理想） |
+| `status` | TEXT | draft / active / completed / cancelled |
+
+**performance_reviews（評価）**
+
+| カラム | 型 | 説明 |
+|---|---|---|
+| `id` | UUID | 主キー |
+| `employee_id` | UUID | 従業員 ID |
+| `review_period_id` | UUID | 評価期間 ID |
+| `reviewer_id` | UUID | 上長プロフィール ID（nullable） |
+| `self_score` | INTEGER | 自己評価スコア 1〜5（nullable） |
+| `manager_score` | INTEGER | 上長評価スコア 1〜5（nullable） |
+| `final_rank` | TEXT | 最終ランク（S/A/B/C/D）（nullable） |
+| `status` | TEXT | draft / self_review / manager_review / completed |
+
+**ユニーク制約**: `(employee_id, review_period_id)` — 同一従業員・同期間の評価は1件のみ。
 
 ---
 

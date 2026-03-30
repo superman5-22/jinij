@@ -218,6 +218,111 @@ export interface SalaryFilters {
   month:       number | ''
 }
 
+// ============================================================
+// 目標・評価管理
+// ============================================================
+
+export type GoalCategory = 'business' | 'skill' | 'behavior' | 'other'
+export type GoalStatus = 'draft' | 'active' | 'completed' | 'cancelled'
+export type ReviewStatus = 'draft' | 'self_review' | 'manager_review' | 'completed'
+export type FinalRank = 'S' | 'A' | 'B' | 'C' | 'D'
+
+export interface ReviewPeriod {
+  id: string
+  name: string
+  start_date: string
+  end_date: string
+  is_active: boolean
+  created_at: string
+}
+
+export interface Goal {
+  id: string
+  employee_id: string
+  review_period_id: string
+  title: string
+  description: string | null
+  category: GoalCategory
+  target_value: string | null
+  weight: number
+  status: GoalStatus
+  created_at: string
+  updated_at: string
+  // JOIN
+  employee?: Employee | null
+  review_period?: ReviewPeriod | null
+}
+
+export interface PerformanceReview {
+  id: string
+  employee_id: string
+  review_period_id: string
+  reviewer_id: string | null
+  self_score: number | null
+  self_comment: string | null
+  manager_score: number | null
+  manager_comment: string | null
+  final_rank: FinalRank | null
+  status: ReviewStatus
+  completed_at: string | null
+  created_at: string
+  updated_at: string
+  // JOIN
+  employee?: Employee | null
+  reviewer?: Profile | null
+  review_period?: ReviewPeriod | null
+}
+
+export interface GoalFormData {
+  employee_id: string
+  review_period_id: string
+  title: string
+  description: string
+  category: GoalCategory
+  target_value: string
+  weight: number
+}
+
+export interface SelfReviewFormData {
+  self_score: number
+  self_comment: string
+}
+
+export interface ManagerReviewFormData {
+  manager_score: number
+  manager_comment: string
+  final_rank: FinalRank
+}
+
+export const GOAL_CATEGORY_LABELS: Record<GoalCategory, string> = {
+  business:  '業務目標',
+  skill:     'スキル目標',
+  behavior:  '行動目標',
+  other:     'その他',
+}
+
+export const GOAL_STATUS_LABELS: Record<GoalStatus, string> = {
+  draft:     '下書き',
+  active:    '進行中',
+  completed: '完了',
+  cancelled: 'キャンセル',
+}
+
+export const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
+  draft:           '未開始',
+  self_review:     '自己評価中',
+  manager_review:  '上長評価中',
+  completed:       '評価完了',
+}
+
+export const FINAL_RANK_LABELS: Record<FinalRank, string> = {
+  S: 'S（卓越）',
+  A: 'A（優秀）',
+  B: 'B（標準）',
+  C: 'C（要改善）',
+  D: 'D（未達）',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
