@@ -54,6 +54,12 @@ const router = createRouter({
           component: () => import('@/views/AttendanceView.vue'),
         },
         {
+          path: 'salary',
+          name: 'salary',
+          component: () => import('@/views/SalaryView.vue'),
+          meta: { requiresHR: true },
+        },
+        {
           path: 'departments',
           name: 'departments',
           component: () => import('@/views/DepartmentView.vue'),
@@ -81,6 +87,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresAdmin && !auth.isAdmin) {
+    return { name: 'dashboard' }
+  }
+
+  if (to.meta.requiresHR && !auth.isHR) {
     return { name: 'dashboard' }
   }
 

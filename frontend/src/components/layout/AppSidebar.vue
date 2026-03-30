@@ -52,18 +52,25 @@ const route = useRoute()
 const router = useRouter()
 
 const baseItems = [
-  { to: '/',          icon: 'bi bi-grid-1x2',        label: 'ダッシュボード' },
-  { to: '/employees', icon: 'bi bi-people',           label: '従業員一覧' },
-  { to: '/leaves',    icon: 'bi bi-calendar-check',   label: '休暇申請・承認' },
+  { to: '/',           icon: 'bi bi-grid-1x2',        label: 'ダッシュボード' },
+  { to: '/employees',  icon: 'bi bi-people',           label: '従業員一覧' },
+  { to: '/leaves',     icon: 'bi bi-calendar-check',   label: '休暇申請・承認' },
+  { to: '/attendance', icon: 'bi bi-clock',            label: '勤怠管理' },
+]
+
+const hrItems = [
+  { to: '/salary',     icon: 'bi bi-cash-coin',        label: '給与管理' },
 ]
 
 const adminItems = [
-  { to: '/departments', icon: 'bi bi-diagram-3',     label: '部署管理' },
+  { to: '/departments', icon: 'bi bi-diagram-3',       label: '部署管理' },
 ]
 
-const navItems = computed(() =>
-  auth.isAdmin ? [...baseItems, ...adminItems] : baseItems
-)
+const navItems = computed(() => {
+  if (auth.isAdmin) return [...baseItems, ...hrItems, ...adminItems]
+  if (auth.isHR)    return [...baseItems, ...hrItems]
+  return baseItems
+})
 
 function isActive(path: string): boolean {
   if (path === '/') return route.path === '/'
