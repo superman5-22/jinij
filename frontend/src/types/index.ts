@@ -218,6 +218,66 @@ export interface SalaryFilters {
   month:       number | ''
 }
 
+// ============================================================
+// 人事評価
+// ============================================================
+export type EvaluationStatus = 'draft' | 'submitted' | 'finalized'
+
+export interface EvaluationRecord {
+  id:                   string
+  employee_id:          string
+  evaluator_id:         string
+  year:                 number
+  quarter:              1 | 2 | 3 | 4
+  score_performance:    number  // 1-5
+  score_teamwork:       number  // 1-5
+  score_communication:  number  // 1-5
+  score_leadership:     number  // 1-5
+  score_growth:         number  // 1-5
+  overall_score:        number  // DB generated: average of 5 scores
+  comment:              string | null
+  status:               EvaluationStatus
+  created_at:           string
+  updated_at:           string
+  // JOIN
+  employee?:   Employee | null
+  evaluator?:  Profile  | null
+}
+
+export interface EvaluationFormData {
+  employee_id:          string
+  year:                 number
+  quarter:              1 | 2 | 3 | 4
+  score_performance:    number
+  score_teamwork:       number
+  score_communication:  number
+  score_leadership:     number
+  score_growth:         number
+  comment:              string
+  status:               EvaluationStatus
+}
+
+export interface EvaluationFilters {
+  employee_id:  string
+  year:         number | ''
+  quarter:      1 | 2 | 3 | 4 | ''
+  status:       EvaluationStatus | ''
+}
+
+export const EVALUATION_STATUS_LABELS: Record<EvaluationStatus, string> = {
+  draft:      '下書き',
+  submitted:  '提出済み',
+  finalized:  '確定',
+}
+
+export const EVALUATION_SCORE_LABELS: Record<number, string> = {
+  1: '1 - 改善要',
+  2: '2 - 要努力',
+  3: '3 - 標準',
+  4: '4 - 優秀',
+  5: '5 - 卓越',
+}
+
 // ページネーション
 export interface Pagination {
   page: number

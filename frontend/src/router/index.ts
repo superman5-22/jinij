@@ -60,6 +60,12 @@ const router = createRouter({
           meta: { requiresHR: true },
         },
         {
+          path: 'evaluations',
+          name: 'evaluations',
+          component: () => import('@/views/EvaluationView.vue'),
+          meta: { requiresManager: true },
+        },
+        {
           path: 'departments',
           name: 'departments',
           component: () => import('@/views/DepartmentView.vue'),
@@ -91,6 +97,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresHR && !auth.isHR) {
+    return { name: 'dashboard' }
+  }
+
+  if (to.meta.requiresManager && !(auth.isManager || auth.isHR || auth.isAdmin)) {
     return { name: 'dashboard' }
   }
 

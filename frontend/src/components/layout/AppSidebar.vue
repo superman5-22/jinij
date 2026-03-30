@@ -58,6 +58,10 @@ const baseItems = [
   { to: '/attendance', icon: 'bi bi-clock',            label: '勤怠管理' },
 ]
 
+const managerItems = [
+  { to: '/evaluations', icon: 'bi bi-bar-chart-line',   label: '人事評価' },
+]
+
 const hrItems = [
   { to: '/salary',     icon: 'bi bi-cash-coin',        label: '給与管理' },
 ]
@@ -67,8 +71,9 @@ const adminItems = [
 ]
 
 const navItems = computed(() => {
-  if (auth.isAdmin) return [...baseItems, ...hrItems, ...adminItems]
-  if (auth.isHR)    return [...baseItems, ...hrItems]
+  if (auth.isAdmin)   return [...baseItems, ...managerItems, ...hrItems, ...adminItems]
+  if (auth.isHR)      return [...baseItems, ...managerItems, ...hrItems]
+  if (auth.isManager) return [...baseItems, ...managerItems]
   return baseItems
 })
 
