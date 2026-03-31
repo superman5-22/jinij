@@ -295,6 +295,57 @@ export const RATING_LABELS: Record<number, string> = {
   5: 'D（不十分）',
 }
 
+// ============================================================
+// 社内お知らせ
+// ============================================================
+export type AnnouncementCategory = 'general' | 'hr' | 'it' | 'management' | 'other'
+export type AnnouncementPriority = 'low' | 'normal' | 'high' | 'urgent'
+
+export interface Announcement {
+  id:           string
+  title:        string
+  content:      string
+  category:     AnnouncementCategory
+  priority:     AnnouncementPriority
+  is_published: boolean
+  published_at: string | null
+  expires_at:   string | null
+  created_by:   string | null
+  created_at:   string
+  updated_at:   string
+}
+
+export interface AnnouncementFormData {
+  title:        string
+  content:      string
+  category:     AnnouncementCategory
+  priority:     AnnouncementPriority
+  is_published: boolean
+  published_at: string
+  expires_at:   string
+}
+
+export interface AnnouncementFilters {
+  category:     AnnouncementCategory | ''
+  priority:     AnnouncementPriority | ''
+  is_published: boolean | ''
+}
+
+export const ANNOUNCEMENT_CATEGORY_LABELS: Record<AnnouncementCategory, string> = {
+  general:    '全社',
+  hr:         '人事・総務',
+  it:         'IT・システム',
+  management: '経営',
+  other:      'その他',
+}
+
+export const ANNOUNCEMENT_PRIORITY_LABELS: Record<AnnouncementPriority, string> = {
+  low:    '低',
+  normal: '通常',
+  high:   '重要',
+  urgent: '緊急',
+}
+
 // ページネーション
 export interface Pagination {
   page: number
